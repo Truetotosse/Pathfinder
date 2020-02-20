@@ -31,7 +31,7 @@ def scout(price,cost,x,y,xold,yold,speed):
     global searchy
     #if speed=='furious':
     #   return price[x][y]**1 + (cost[xold][yold]*(abs(searchx-x)+1)*(abs(searchy-y)+1))**0.1+(xold-x)*1.5+(yold-y)*1.5
-    if speed=='furious':
+    if speed=='furious' or 'feeling lucky':
         return price[x][y]**1 + (cost[xold][yold]*((abs(searchx-x)+abs(searchy-y))**2))**0.2+(xold-x)*math.log(size)+(yold-y)*math.log(size)
     if speed=='fast':
         return price[x][y]**1 + (abs(searchx-x)**2+abs(searchy-y)**2)/(abs(searchx-x)+abs(searchy-y)+1)+(xold-x)*1.5+(yold-y)*1.5
@@ -110,10 +110,25 @@ def walker(price,cost,memory,x,y,deep,speed):
                                             queue.pop(count) 
                                         count+=1
         #check the first item in the queue, deleting it from the queue
+        '''
         next=queue[0]
         queue.pop(0)
         walker(price,cost,memory,next[1],next[2],deep+1,speed)
-
+        '''
+        if speed=='feeling lucky':
+            try:
+                nicetry=random.randint(0,5)
+                next=queue[nicetry]
+                queue.pop(nicetry)
+                walker(price,cost,memory,next[1],next[2],deep+1,speed)
+            except IndexError:
+                next=queue[0]
+                queue.pop(0)
+                walker(price,cost,memory,next[1],next[2],deep+1,speed)
+        else:
+            next=queue[0]
+            queue.pop(0)
+            walker(price,cost,memory,next[1],next[2],deep+1,speed)
 
 price=[[0 for col in range(size)] for row in range(size)]
 memory=[[-1 for col in range(size)] for row in range(size)]
@@ -122,7 +137,6 @@ random.seed()
 #generating random costs
 for i in range(size):
     for j in range(size):
-        random.seed()
         price[i][j]=random.randint(1, 85)
 #10x10 test 
 test=[[ 1, 4, 4, 5, 1, 1, 1, 1, 1, 1],
@@ -212,8 +226,8 @@ class table(pygame.sprite.Sprite):
         #tips for the user
         text = fnt.render(('space to find path furiously(size<=80), numpad enter for fast, return(enter) for fast&furious'), 1, (0, 0, 0))
         self.image.blit(text, (20,740))
-        text = fnt.render(('backspace to exit'), 1, (0, 0, 0))
-        self.image.blit(text, (20,780))
+        text = fnt.render(('feeling lucky press Lshift, backspace to exit'), 1, (0, 0, 0))
+        self.image.blit(text, (20,760))
         text = fnt.render(('left click to change finish square'), 1, (0, 0, 0))
         self.image.blit(text, (360,760))
         text = fnt.render(('right click to change starting square'), 1, (0, 0, 0))
@@ -244,7 +258,7 @@ while running:
             running = False
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
             if started==0:
-                #if sudoku is not solved by chain reaction, start solving it by assumtions in a new thread
+                
                 started=1
                 price[searchx][searchy]=0
                 t = threading.Thread(target=walker,args=(price,cost,memory,startx,starty,0,'furious'))
@@ -253,21 +267,30 @@ while running:
                 break
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
             if started==0:
-                #if sudoku is not solved by chain reaction, start solving it by assumtions in a new thread
+                
                 started=1
                 price[searchx][searchy]=0
                 t = threading.Thread(target=walker,args=(price,cost,memory,startx,starty,0,'fast&furious'))
                 t.start()
-                #b=assumpt(b,i,j,0)
+               
                 break
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
             if started==0:
-                #if sudoku is not solved by chain reaction, start solving it by assumtions in a new thread
+                
                 started=1
                 price[searchx][searchy]=0
                 t = threading.Thread(target=walker,args=(price,cost,memory,startx,starty,0,'fast'))
                 t.start()
-                #b=assumpt(b,i,j,0)
+                
+                break
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_LSHIFT:
+            if started==0:
+               
+                started=1
+                price[searchx][searchy]=0
+                t = threading.Thread(target=walker,args=(price,cost,memory,startx,starty,0,'feeling lucky'))
+                t.start()
+                
                 break
         elif event.type == pygame.KEYDOWN and event.key == pygame.K_BACKSPACE:
             #backspace for exit
