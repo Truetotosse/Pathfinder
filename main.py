@@ -4,11 +4,12 @@ import threading
 import pygame
 from  copy import deepcopy
 import time
+import math
 pygame.font.init()
 
 finished=0
 #defaults
-size=50
+size=80
 
 searchx=size-1
 searchy=size-1
@@ -25,14 +26,17 @@ sys.setrecursionlimit(100000)
 threading.stack_size(0x2000000)
 
 #evaluating square
-def scout(price,cost,x,y,xold,yold):
+def scout(price,cost,x,y,xold,yold,speed):
     global searchx
     global searchy
-    return price[x][y]**1 + (cost[xold][yold]*abs(searchx-x)*abs(searchy-y))**0.1+(xold-x)*1.5+(yold-y)*1.5
+    if speed=='furious':
+        return price[x][y]**1 + (cost[xold][yold]*abs(searchx-x)*abs(searchy-y))**0.1+(xold-x)*1.5+(yold-y)*1.5
+    if speed=='fast':
+        return price[x][y]**1 + (abs(searchx-x)**2+abs(searchy-y)**2)/(abs(searchx-x)+abs(searchy-y)+1)+(xold-x)*1.5+(yold-y)*1.5
 
 #looking for the path
-def walker(price,cost,memory,x,y):
-    time.sleep(0.001)
+def walker(price,cost,memory,x,y,deep,speed):
+    #time.sleep(0.001)
     global visited
     global finished
     #marking visited for rendering purposes
@@ -48,7 +52,13 @@ def walker(price,cost,memory,x,y):
     else:
         for i in range(3):
                 if x+i-1 in range(size) and x+i-1!=x:
-                    ev=scout(price,cost,x+i-1,y,x,y)
+                    if speed=='fast&furious':
+                        if deep>size*math.log(size)*2:
+                            ev=scout(price,cost,x+i-1,y,x,y,'fast')
+                        else:
+                            ev=scout(price,cost,x+i-1,y,x,y,'furious')
+                    else:
+                        ev=scout(price,cost,x+i-1,y,x,y,speed)
                     count=0
                     #evaluate and post square into the queue, depending on its value
                     if cost[x+i-1][y]==1 or cost[x+i-1][y]>price[x+i-1][y]+cost[x][y]:
@@ -62,13 +72,24 @@ def walker(price,cost,memory,x,y):
                                 pass
                             else:
 
-                                    queue.insert(count,[ev,x+i-1,y]) 
+                                    queue.insert(count,[ev,x+i-1,y])
+                                    count+=1 
+                                    while count<len(queue):
+                                        if queue[count][1]==x+i-1 and queue[count][2]==y:
+                                            queue.pop(count)
+                                        count+=1
                         
 
 
         for i in range(3):
                 if y+i-1 in range(size) and y+i-1!=y:
-                    ev=scout(price,cost,x,y+i-1,x,y)
+                    if speed=='fast&furious':
+                        if deep>size*math.log(size)*2:
+                            ev=scout(price,cost,x,y+i-1,x,y,'fast')
+                        else:
+                            ev=scout(price,cost,x,y+i-1,x,y,'furious')
+                    else:
+                        ev=scout(price,cost,x,y+i-1,x,y,speed)
                     count=0
                     #evaluate and post square into the queue, depending on its value
                     if cost[x][y+i-1]==1 or cost[x][y+i-1]>price[x][y+i-1]+cost[x][y]:
@@ -80,11 +101,16 @@ def walker(price,cost,memory,x,y):
                             if len(queue)>count and (queue[count][1]==x and queue[count][2]==y+i-1):
                                 pass
                             else:
-                                    queue.insert(count,[ev,x,y+i-1]) 
+                                    queue.insert(count,[ev,x,y+i-1])
+                                    count+=1
+                                    while count<len(queue):
+                                        if queue[count][1]==x and queue[count][2]==y+i-1:
+                                            queue.pop(count) 
+                                        count+=1
         #check the first item in the queue, deleting it from the queue
         next=queue[0]
         queue.pop(0)
-        walker(price,cost,memory,next[1],next[2])
+        walker(price,cost,memory,next[1],next[2],deep+1,speed)
 
 
 price=[[0 for col in range(size)] for row in range(size)]
@@ -125,7 +151,7 @@ class table(pygame.sprite.Sprite):
         visited=deepcopy(cost)
         pygame.sprite.Sprite.__init__(self)
         fnt = pygame.font.SysFont("comicsans", 40)
-        self.image = pygame.Surface((900, 900))
+        self.image = pygame.Surface((720, 720))
         self.image.fill((0, 255, 0))
         self.rect = self.image.get_rect()
         self.rect.center = (225, 225)
@@ -140,17 +166,17 @@ class table(pygame.sprite.Sprite):
         fnt = pygame.font.SysFont("comicsans", 20)
         global cstate
         #background
-        self.image = pygame.Surface((900, 1000))
+        self.image = pygame.Surface((720, 820))
         self.image.fill((210, 210, 210))
         self.rect = self.image.get_rect()
-        self.rect.center = (450, 500)
+        self.rect.center = (360, 410)
         #85 shades of cost
         if finished==0:
             for i in range(size):
                 for j in range(size):
-                            pygame.draw.rect(self.image,(255-price[i][j]*2,255-price[i][j]*2,255-price[i][j]*2),((i*900/size,j*900/size),(900/size,900/size)))
+                            pygame.draw.rect(self.image,(255-price[i][j]*2,255-price[i][j]*2,255-price[i][j]*2),((i*720/size,j*720/size),(720/size,720/size)))
                             if visited[i][j]==3:
-                                pygame.draw.rect(self.image,(0,0,0),((i*900/size,j*900/size),(900/size,900/size)))
+                                pygame.draw.rect(self.image,(0,0,0),((i*720/size,j*720/size),(720/size,720/size)))
         #if finished create cost map and renderpath
         elif self.max==0:
             #search for max only once (in ui so that tick dependant, can be made parallel)
@@ -163,38 +189,38 @@ class table(pygame.sprite.Sprite):
             for i in range(size):
                 for j in range(size):
                     #print(cstate[i][j]/self.max,cstate[i][j]*255)
-                    pygame.draw.rect(self.image,(255-(cstate[i][j]/self.max*255),255-(cstate[i][j]/self.max*255),255-(cstate[i][j]/self.max*255)),((i*900/size,j*900/size),(900/size,900/size)))
+                    pygame.draw.rect(self.image,(255-(cstate[i][j]/self.max*255),255-(cstate[i][j]/self.max*255),255-(cstate[i][j]/self.max*255)),((i*720/size,j*720/size),(720/size,720/size)))
             i=searchx
             j=searchy
             #render path
             while i!=startx or j!=starty:
-                pygame.draw.rect(self.image,(0,0,255),((i*900/size,j*900/size),(900/size,900/size)))
+                pygame.draw.rect(self.image,(0,0,255),((i*720/size,j*720/size),(720/size,720/size)))
                 k=i
                 i=memory[k][j][0]
                 j=memory[k][j][1]
         #start and end squares
-        pygame.draw.rect(self.image,(255,0,0),((searchx*900/size,searchy*900/size),(900/size,900/size)))
-        pygame.draw.rect(self.image,(0,255,0),((startx*900/size,starty*900/size),(900/size,900/size)))
+        pygame.draw.rect(self.image,(255,0,0),((searchx*720/size,searchy*720/size),(720/size,720/size)))
+        pygame.draw.rect(self.image,(0,255,0),((startx*720/size,starty*720/size),(720/size,720/size)))
         #lines
         for i in range(size):
             #horizontal lines
-            pygame.draw.line(self.image,(0,0,0),(0,900/size+i*900/size),(900,900/size+i*900/size),1)
+            pygame.draw.line(self.image,(0,0,0),(0,720/size+i*720/size),(720,720/size+i*720/size),1)
             #vertical lines
-            pygame.draw.line(self.image,(0,0,0),(900/size+i*900/size,0),(900/size+i*900/size,900),1)
+            pygame.draw.line(self.image,(0,0,0),(720/size+i*720/size,0),(720/size+i*720/size,720),1)
         #tips for the user
-        text = fnt.render(('space to find path'), 1, (0, 0, 0))
-        self.image.blit(text, (20,920))
+        text = fnt.render(('space to find path furiously(size<=80), numpad enter for fast, return(enter) for fast&furious'), 1, (0, 0, 0))
+        self.image.blit(text, (20,740))
         text = fnt.render(('backspace to exit'), 1, (0, 0, 0))
-        self.image.blit(text, (20,960))
+        self.image.blit(text, (20,780))
         text = fnt.render(('left click to change finish square'), 1, (0, 0, 0))
-        self.image.blit(text, (400,920))
+        self.image.blit(text, (360,760))
         text = fnt.render(('right click to change starting square'), 1, (0, 0, 0))
-        self.image.blit(text, (400,960))
-        #saving previous render to compare
+        self.image.blit(text, (360,780))
+
 
 pygame.init()
 pygame.mixer.init()
-screen = pygame.display.set_mode((900, 1000))
+screen = pygame.display.set_mode((720, 820))
 pygame.display.set_caption("Pathfinder")
 clock = pygame.time.Clock()
 all_sprites = pygame.sprite.Group()
@@ -219,7 +245,25 @@ while running:
                 #if sudoku is not solved by chain reaction, start solving it by assumtions in a new thread
                 started=1
                 price[searchx][searchy]=0
-                t = threading.Thread(target=walker,args=(price,cost,memory,startx,starty))
+                t = threading.Thread(target=walker,args=(price,cost,memory,startx,starty,0,'furious'))
+                t.start()
+                #b=assumpt(b,i,j,0)
+                break
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+            if started==0:
+                #if sudoku is not solved by chain reaction, start solving it by assumtions in a new thread
+                started=1
+                price[searchx][searchy]=0
+                t = threading.Thread(target=walker,args=(price,cost,memory,startx,starty,0,'fast&furious'))
+                t.start()
+                #b=assumpt(b,i,j,0)
+                break
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_KP_ENTER:
+            if started==0:
+                #if sudoku is not solved by chain reaction, start solving it by assumtions in a new thread
+                started=1
+                price[searchx][searchy]=0
+                t = threading.Thread(target=walker,args=(price,cost,memory,startx,starty,0,'fast'))
                 t.start()
                 #b=assumpt(b,i,j,0)
                 break
@@ -230,11 +274,11 @@ while running:
             if started==0:
                 pos = pygame.mouse.get_pos()
                 if event.button==1:
-                    searchx=int(pos[0]/900*size)
-                    searchy=int(pos[1]/900*size)
+                    searchx=int(pos[0]/720*size)
+                    searchy=int(pos[1]/720*size)
                 elif event.button==3:
-                    startx=int(pos[0]/900*size)
-                    starty=int(pos[1]/900*size)
+                    startx=int(pos[0]/720*size)
+                    starty=int(pos[1]/720*size)
 
        
     
