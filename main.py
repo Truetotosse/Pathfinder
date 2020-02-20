@@ -9,7 +9,7 @@ pygame.font.init()
 
 finished=0
 #defaults
-size=80
+size=240
 
 searchx=size-1
 searchy=size-1
@@ -29,8 +29,10 @@ threading.stack_size(0x2000000)
 def scout(price,cost,x,y,xold,yold,speed):
     global searchx
     global searchy
+    #if speed=='furious':
+    #   return price[x][y]**1 + (cost[xold][yold]*(abs(searchx-x)+1)*(abs(searchy-y)+1))**0.1+(xold-x)*1.5+(yold-y)*1.5
     if speed=='furious':
-        return price[x][y]**1 + (cost[xold][yold]*abs(searchx-x)*abs(searchy-y))**0.1+(xold-x)*1.5+(yold-y)*1.5
+        return price[x][y]**1 + (cost[xold][yold]*((abs(searchx-x))+(abs(searchy-y+1))**2))**0.2+(xold-x)*1.5+(yold-y)*1.5
     if speed=='fast':
         return price[x][y]**1 + (abs(searchx-x)**2+abs(searchy-y)**2)/(abs(searchx-x)+abs(searchy-y)+1)+(xold-x)*1.5+(yold-y)*1.5
 
