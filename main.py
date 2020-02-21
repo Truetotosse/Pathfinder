@@ -10,6 +10,7 @@ pygame.font.init()
 finished=0
 #defaults
 size=240
+diff=60
 
 searchx=size-1
 searchy=size-1
@@ -34,7 +35,7 @@ def scout(price,cost,x,y,xold,yold,speed):
     if speed=='furious' or 'feeling lucky':
         return price[x][y]**1 + (cost[xold][yold]*((abs(searchx-x)+abs(searchy-y))**2))**0.2+(xold-x)*math.log(size)+(yold-y)*math.log(size)
     if speed=='fast':
-        return price[x][y]**1 + (abs(searchx-x)**2+abs(searchy-y)**2)/(abs(searchx-x)+abs(searchy-y)+1)+(xold-x)*1.5+(yold-y)*1.5
+        return price[x][y]**1 + (abs(searchx-x)+abs(searchy-y))**2/(abs(searchx-x)+abs(searchy-y)+1)+(xold-x)*math.log(size)+(yold-y)*math.log(size)
 
 #looking for the path
 def walker(price,cost,memory,x,y,deep,speed):
@@ -137,7 +138,7 @@ random.seed()
 #generating random costs
 for i in range(size):
     for j in range(size):
-        price[i][j]=random.randint(1, 85)
+        price[i][j]=random.randint(1, diff)
 #10x10 test 
 test=[[ 1, 4, 4, 5, 1, 1, 1, 1, 1, 1],
       [ 1,10,10,10,10,10,10,10,10, 1],
@@ -193,6 +194,8 @@ class table(pygame.sprite.Sprite):
                             pygame.draw.rect(self.image,(255-price[i][j]*2,255-price[i][j]*2,255-price[i][j]*2),((i*720/size,j*720/size),(720/size,720/size)))
                             if visited[i][j]==3:
                                 pygame.draw.rect(self.image,(0,0,0),((i*720/size,j*720/size),(720/size,720/size)))
+            if self.max>0:
+                self.max=0
         #if finished create cost map and renderpath
         elif self.max==0:
             #search for max only once (in ui so that tick dependant, can be made parallel)
@@ -200,12 +203,14 @@ class table(pygame.sprite.Sprite):
                 for j1 in range(size):
                     if cstate[i1][j1]>self.max:
                         self.max=cstate[i1][j1]
+            print(self.max)
+            print(cost[searchx][searchy])
         else:
             #render costs map
             for i in range(size):
                 for j in range(size):
                     #print(cstate[i][j]/self.max,cstate[i][j]*255)
-                    pygame.draw.rect(self.image,(255-(cstate[i][j]/self.max*255),255-(cstate[i][j]/self.max*255),255-(cstate[i][j]/self.max*255)),((i*720/size,j*720/size),(720/size,720/size)))
+                    pygame.draw.rect(self.image,(255-(cstate[i][j]/self.max*250),255-(cstate[i][j]/self.max*250),255-(cstate[i][j]/self.max*250)),((i*720/size,j*720/size),(720/size,720/size)))
             i=searchx
             j=searchy
             #render path
@@ -229,6 +234,8 @@ class table(pygame.sprite.Sprite):
         text = fnt.render(('feeling lucky press Lshift, backspace to exit'), 1, (0, 0, 0))
         self.image.blit(text, (20,760))
         text = fnt.render(('left click to change finish square'), 1, (0, 0, 0))
+        self.image.blit(text, (20,780))
+        text = fnt.render(('tab to start again, Rshift to start again with the same prices'), 1, (0, 0, 0))
         self.image.blit(text, (360,760))
         text = fnt.render(('right click to change starting square'), 1, (0, 0, 0))
         self.image.blit(text, (360,780))
@@ -247,6 +254,10 @@ running = True
 
 #flag if started solving to prevent multiple threads
 started=0
+
+
+
+
 
 while running:
     # low fps so can see some steps
@@ -304,9 +315,32 @@ while running:
                 elif event.button==3:
                     startx=int(pos[0]/720*size)
                     starty=int(pos[1]/720*size)
-
-       
-    
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_TAB:
+            if started==1 and finished==1:
+                started=0
+                finished=0
+                cstate=[]
+                queue=[]
+                price=[[0 for col in range(size)] for row in range(size)]
+                memory=[[-1 for col in range(size)] for row in range(size)]
+                cost=[[1 for col in range(size)] for row in range(size)]
+                visited=deepcopy(cost)
+                random.seed()
+                #generating random costs
+                for i in range(size):
+                    for j in range(size):
+                        price[i][j]=random.randint(1, diff)
+                table.__init__(table,screen)
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_RSHIFT:
+            if started==1 and finished==1:
+                started=0
+                finished=0
+                cstate=[]
+                queue=[]
+                memory=[[-1 for col in range(size)] for row in range(size)]
+                cost=[[1 for col in range(size)] for row in range(size)]
+                visited=deepcopy(cost)
+                table.__init__(table,screen)
 
     #pygame render update    
     all_sprites.update(screen)
@@ -316,6 +350,9 @@ while running:
     pygame.display.flip()
 
 pygame.quit()
+
+
+
 '''
 for i in range(size):
     for j in range(size):
